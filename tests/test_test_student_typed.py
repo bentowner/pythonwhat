@@ -69,5 +69,20 @@ class TestWikiExample(unittest.TestCase):
         sct_payload = helper.run(self.data)
         self.assertFalse(sct_payload['correct'])
 
+class TestInIfElse(unittest.TestCase):
+
+    def setUp(self):
+        self.data = {
+                "DC_SCT": """
+test_if_exp(body=test_student_typed(r"\s*2\*\*2\s*if"))  # Note that trailing "if" shouldn't match!
+""",
+                "DC_SOLUTION": """2**2 if 2> 5 else 0"""
+                }
+        self.data["DC_CODE"] = self.data["DC_SOLUTION"]
+
+    def test_pass(self):
+        sct_payload = helper.run(self.data)
+        self.assertFalse(sct_payload['correct'])
+        
 if __name__ == "__main__":
     unittest.main()
