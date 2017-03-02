@@ -74,7 +74,8 @@ def check_node(name, index, typestr, missing_msg=MSG_MISSING, expand_msg=MSG_PRE
 
     # check if there are enough nodes for index
     fmt_kwargs = {'ordinal': get_ord(index+1) if isinstance(index, int) else "",
-                  'index': index}
+                  'index': index,
+                  'name': name}
     fmt_kwargs['typestr'] = typestr.format(**fmt_kwargs)
 
     # test if node can be indexed succesfully
@@ -178,7 +179,7 @@ def test_not(*args, msg, state=None):
         return state
     
     _msg = state.build_message(msg)
-    return rep.do_test(Test(msg))
+    return rep.do_test(Test(_msg))
 
 # utility functions -----------------------------------------------------------
 
@@ -193,9 +194,38 @@ def fail(msg="", state=None):
     """Fail test with message"""
     rep = Reporter.active_reporter
     _msg = state.build_message(msg)
-    rep.do_test(Test(Feedback(msg, state.highlight)))
+    rep.do_test(Test(Feedback(_msg, state.highlight)))
 
     return state
+
+import ast
+def override(solution, state=None):
+    """Change the focused solution code."""
+
+    # the old ast may be a number of node types, but generally either a
+    # (1) ast.Module, or for single expressions...
+    # (2) whatever was grabbed using module.body[0]
+    # (3) module.body[0].value, when module.body[0] is an Expr node
+    old_ast = state.solution_tree
+    new_ast = ast.parse(solution)
+    if not isinstance(old_ast, ast.Module) and len(new_ast.body) == 1:
+        expr = new_ast.body[0]
+        candidates = [expr, expr.value] if isinstance(expr, ast.Expr) else [expr]
+        for node in candidates:
+            if isinstance(node, old_ast.__class__): 
+                new_ast = node
+                break
+
+    kwargs  = state.messages[-1] if state.messages else {}
+    child = state.to_child_state(
+            solution_subtree = new_ast,
+            student_subtree = state.student_tree,
+            highlight = state.highlight,
+            append_message = {'msg': "", 'kwargs': kwargs}
+            )
+
+    return child
+    
 
 # context functions -----------------------------------------------------------
 
@@ -267,7 +297,8 @@ def check_args(name, missing_msg='FMT:Are you sure it is defined?', state=None):
     if name in ['*args', '**kwargs']:
         return check_part(name, name, state=state, missing_msg = missing_msg)
     else: 
-        return check_part_index('args', name, "argument `%s`"%name, state=state, missing_msg = missing_msg)
+        arg_str = "%s argument"%get_ord(name+1) if isinstance(name, int) else "argument `%s`"%name
+        return check_part_index('args', name, arg_str, state=state, missing_msg = missing_msg)
 
 
 # CALL CHECK ==================================================================
@@ -369,8 +400,25 @@ def call(args,
 # Expression tests ------------------------------------------------------------
 from pythonwhat.tasks import ReprFail, UndefinedValue
 from pythonwhat import utils
+
+def has_equal_ast(incorrect_msg="FMT: Your code does not seem to match the solution.", state=None):
+    """Test whether abstract syntax trees match between the student and solution code.
+
+    Args:
+        incorrect_msg: message displayed when ASTs mismatch.
+    """
+    rep = Reporter.active_reporter
+
+    stu_rep = ast.dump(state.student_tree)
+    sol_rep = ast.dump(state.solution_tree)
+
+    _msg = state.build_message(incorrect_msg)
+    rep.do_test(EqualTest(stu_rep, sol_rep, Feedback(_msg, state.highlight)))
+
+    return state
+
 def has_expr(incorrect_msg="FMT:Unexpected expression {test}: expected `{sol_eval}`, got `{stu_eval}` with values{extra_env}.",
-             error_msg="Running an expression in the student process caused an issue",
+             error_msg="Running an expression in the student process caused an issue.",
              undefined_msg="FMT:Have you defined `{name}` without errors?",
              extra_env=None,
              context_vals=None,
@@ -381,6 +429,34 @@ def has_expr(incorrect_msg="FMT:Unexpected expression {test}: expected `{sol_eva
              highlight=None,
              state=None,
              test=None):
+    """Run student and solution code, compare returned value, printed output, or errors.
+
+    Args:
+        incorrect_msg (str): feedback message if the output of the expression in the solution doesn't match
+          the one of the student. This feedback message will be expanded if it is used in the context of
+          another test function, like test_if_else.
+        error_msg (str): feedback message if there was an error when running the student code.
+          Note that when testing for an error, this message is displayed when none is raised.
+        undefined_msg (str): feedback message if the name argument is defined, but a variable 
+          with that name doesn't exist after running the student code.
+        extra_env (dict): set variables to the extra environment. They will update the student
+          and solution environment in the active state before the student/solution code in the active
+          state is ran. This argument should contain a dictionary with the keys the names of
+          the variables you want to set, and the values are the values of these variables.
+        context_vals (list): set variables which are bound in a for loop to certain values. This argument is
+          only useful if you use the function in a test_for_loop. It contains a list with the values
+          of the bound variables.
+        expr_code (str): if this variable is not None, the expression in the student/solution code will not
+          be ran. Instead, the given piece of code will be ran in the student as well as the solution environment
+          and the result will be compared.
+        pre_code (str): the code in string form that should be executed before the expression is executed.
+          This is the ideal place to set a random seed, for example.
+        keep_obj_in_env (list()): a list of variable names that should be hold in the copied environment where
+          the expression is evaluated. All primitive types are copied automatically, other objects have to
+          be passed explicitely.
+        name (str): the name of a variable, or expression, whose value will be tested after running the
+          student and solution code. This could be thought of as post code.
+    """
     rep = Reporter.active_reporter
 
     # run function to highlight a block of code

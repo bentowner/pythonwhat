@@ -299,8 +299,20 @@ texinfo_documents = [
 
 add_module_names = False
 
+from recommonmark.transform import AutoStructify
+def setup(app):
+    github_doc_root = 'https://github.com/datacamp/pythonwhat/blob/master/docs/source/'
+    app.add_config_value('recommonmark_config', {
+            'url_resolver': lambda url: github_doc_root + url,
+            'auto_toc_tree_section': 'Contents',
+            }, True)
+    app.add_transform(AutoStructify)
+    app.add_stylesheet('theme_overrides.css')
+
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 if not on_rtd:  # only import and set the theme if we're building docs locally
     import sphinx_rtd_theme
     html_theme = 'sphinx_rtd_theme'
     html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+    def setup(app):
+        app.add_stylesheet('theme_overrides.css')
