@@ -9,7 +9,7 @@ from pythonwhat.check_funcs import part_to_child, has_equal_value
 MSG_PREPEND = "FMT:Check the variable `{index}`. "
 MSG_UNDEFINED = "FMT:Are you sure you defined the {typestr}, `{index}`?"
 MSG_INCORRECT_VAL = """FMT: Have you specified the correct value for "{key}" inside `{parent[sol_part][name]}`?"""
-MSG_KEY_MISSING = "__JINJA__:There is no {{ 'column' if 'DataFrame' in parent.typestr else 'key' }} inside {{parent.index}}."
+MSG_KEY_MISSING = "__JINJA__:There is no {{ 'column' if 'DataFrame' in parent.typestr else 'key' }} named `{{ key }}` inside `{{parent.index}}`."
 
 def check_object(index, missing_msg=MSG_UNDEFINED, expand_msg=MSG_PREPEND, state=None, typestr="variable"):
     rep = Reporter.active_reporter
