@@ -479,6 +479,87 @@ class ObjectAssignmentParser(Parser):
                 'assignments': [] if not ass_node else [ass_node]
                 }
 
+class ObjectAssignmentParser2(Parser):
+    """Find object assignmnts
+
+    A parser which inherits from the basic parser to find object assignments.
+    All assignments at top-level, as well as in if, while, for and with statements are found.
+
+    TODO: Assign AST has these attrs: target, value. 
+
+                1. target can be several Attribute calls
+                2. value is the expression being assigned
+
+          Desired Output:
+
+                x = 1        -> 'x': <AST for rhs>
+                a.b.c = 2    -> 'a.b.c': <AST for rhs>
+                x, y = [3, 4] -> ??? (unsupported for now)
+                x, *y = [3]   -> ??? (unsupported for now)
+
+                Other attrs: highlight is lhs+rhs;
+                Could add indexing later.
+    """
+
+    def __init__(self):
+        self.out = {}
+        self.active_assignment = None
+
+    def visit_Name(self, node):
+        if self.active_assignment is not None:
+            if node.id not in self.out:
+                self.out[node.id] = self.get_part(node, self.active_assignment)
+            else:
+                self.out[node.id]['highlight'] = None
+                self.out[node.id]['assignments'].append(self.active_assignment)
+            self.active_assignment = None
+
+    def visit_Attribute(self, node):
+        self.visit(node.value)
+
+    def visit_Assign(self, node):
+        self.active_assignment = node
+        self.visit_each(node.targets)
+
+    def visit_AugAssign(self, node):
+        self.active_assignment = node
+        self.visit(node.target)
+
+    def visit_If(self, node):
+        self.visit_each(node.body)
+        self.visit_each(node.orelse)
+
+    def visit_While(self, node):
+        self.visit_each(node.body)
+        self.visit_each(node.orelse)
+
+    def visit_For(self, node):
+        self.visit_each(node.body)
+        self.visit_each(node.orelse)
+
+    def visit_With(self, node):
+        self.visit_each(node.body)
+
+    def visit_Try(self, node):
+        self.visit_each(node.body)
+        self.visit_each(node.finalbody)
+
+    def visit_TryFinally(self, node):
+        self.visit_each(node.body)
+        self.visit_each(node.finalbody)
+
+    @staticmethod
+    def get_part(name_node, ass_node=None):
+        # either name node or simply str or name itself
+        name = getattr(name_node, 'id', name_node)
+        load_name = ast.Name(id=name, ctx=ast.Load())
+        ast.fix_missing_locations(load_name)
+        # 
+        return {'name': name,
+                'node': load_name,
+                'highlight': ass_node or name_node,
+                'assignments': [] if not ass_node else [ass_node]
+                }
 
 class IfParser(Parser):
     """Find if structures.
@@ -824,7 +905,8 @@ class TryExceptParser(Parser):
 
 parser_dict = {
         "object_accesses": ObjectAccessParser,
-        "object_assignments": ObjectAssignmentParser,
+        "object_assignments": ObjectAssignmentParser,  # used in some test_* functions
+        "assignments": ObjectAssignmentParser,         # used for check_assignment
         "operators": OperatorParser,
         "imports": ImportParser,
         "if_elses": IfParser,
