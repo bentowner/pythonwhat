@@ -36,19 +36,6 @@ def get_env(ns):
     else:
         return ns
 
-@contextmanager
-def capture_output():
-    import sys
-    from io import StringIO
-    oldout, olderr = sys.stdout, sys.stderr
-    out = [StringIO(), StringIO()]
-    sys.stdout, sys.stderr = out
-    yield out
-    sys.stdout, sys.stderr = oldout, olderr
-    out[0] = out[0].getvalue()
-    out[1] = out[1].getvalue()
-
-
 ## DEBUGGING
 
 # import pythonwhat; pythonwhat.tasks.listElementsInProcess(state.student_process)
@@ -305,13 +292,23 @@ def get_rep(f):
         return getResultFromProcess(res, tempname, process)
     return wrapper
 
+@contextmanager
+def capture_output():
+    import sys
+    from io import StringIO
+    oldout, olderr = sys.stdout, sys.stderr
+    out = [StringIO(), StringIO()]
+    sys.stdout, sys.stderr = out
+    yield out
+    sys.stdout, sys.stderr = oldout, olderr
+
 ## Get the output of a tree (with setting envs, pre_code and/er expr_code)
 @process_task
 def get_output(f, process, shell, *args, **kwargs):
     with capture_output() as out:
         res = f(*args, process=process, shell=shell, **kwargs)
 
-    out_str = out[0].strip()
+    out_str = out[0].getvalue().strip()
     if not isinstance(res, Exception):
         str_rep = out_str or "no output"
         return (out_str, str_rep) 

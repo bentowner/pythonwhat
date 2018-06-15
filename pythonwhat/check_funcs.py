@@ -668,19 +668,19 @@ def has_equal_ast(incorrect_msg="FMT: Your code does not seem to match the solut
 DEFAULT_INCORRECT_MSG="__JINJA__:Unexpected expression {{test}}: expected `{{sol_eval}}`, got `{{stu_eval}}`{{' with values ' + extra_env if extra_env}}."
 DEFAULT_ERROR_MSG="Running an expression in the student process caused an issue."
 DEFAULT_UNDEFINED_MSG="FMT:Have you defined `{name}` without errors?"
-def has_expr(incorrect_msg=DEFAULT_INCORRECT_MSG,
-             error_msg=DEFAULT_ERROR_MSG,
-             undefined_msg=DEFAULT_UNDEFINED_MSG,
-             extra_env=None,
-             context_vals=None,
-             pre_code=None,
-             expr_code=None,
-             name=None,
-             highlight=None,
-             copy=True,
-             func=None,
-             state=None,
-             test=None):
+def has_equal_x(incorrect_msg=DEFAULT_INCORRECT_MSG,
+                error_msg=DEFAULT_ERROR_MSG,
+                undefined_msg=DEFAULT_UNDEFINED_MSG,
+                extra_env=None,
+                context_vals=None,
+                pre_code=None,
+                expr_code=None,
+                name=None,
+                highlight=None,
+                copy=True,
+                func=None,
+                state=None,
+                test=None):
 
     rep = Reporter.active_reporter
 
@@ -691,18 +691,18 @@ def has_expr(incorrect_msg=DEFAULT_INCORRECT_MSG,
     highlight = highlight or state.highlight
 
     get_func = partial(evalCalls[test], 
-                       extra_env = extra_env,
-                       context_vals = context_vals,
-                       pre_code = pre_code,
-                       expr_code = expr_code,
-                       name = name,
+                       extra_env=extra_env,
+                       context_vals=context_vals,
+                       pre_code=pre_code,
+                       expr_code=expr_code,
+                       name=name,
                        copy=copy,
-                       do_exec = True if test == 'output' else False)
+                       do_exec=True if test == 'output' else False)
 
-    eval_sol, str_sol = get_func(tree = state.solution_tree,
-                                 process = state.solution_process,
-                                 context = state.solution_context,
-                                 env = state.solution_env)
+    eval_sol, str_sol = get_func(tree=state.solution_tree,
+                                 process=state.solution_process,
+                                 context=state.solution_context,
+                                 env=state.solution_env)
 
     if (test == 'error') ^ isinstance(str_sol, Exception):
         raise ValueError("Evaluating expression raised error in solution process (or not an error if testing for one). "
@@ -710,10 +710,10 @@ def has_expr(incorrect_msg=DEFAULT_INCORRECT_MSG,
     if isinstance(eval_sol, ReprFail):
         raise ValueError("Couldn't figure out the value of a default argument: " + eval_sol.info)
 
-    eval_stu, str_stu = get_func(tree = state.student_tree,
-                                 process = state.student_process,
-                                 context = state.student_context,
-                                 env = state.student_env)
+    eval_stu, str_stu = get_func(tree=state.student_tree,
+                                 process=state.student_process,
+                                 context=state.student_context,
+                                 env=state.student_env)
 
     # kwargs ---
     fmt_kwargs = {'stu_part': state.student_parts, 'sol_part': state.solution_parts, 
@@ -773,7 +773,7 @@ args_string = """
         func: custom binary function of form f(stu_result, sol_result), for equality testing.
     """
 
-has_equal_value =  partial(has_expr, test = 'value')
+has_equal_value = partial(has_equal_x, test='value')
 has_equal_value.__doc__ = """Run targeted student and solution code, and compare returned value.
 
     When called on an SCT chain, ``has_equal_value()`` will execute the student and solution
@@ -801,14 +801,14 @@ has_equal_value.__doc__ = """Run targeted student and solution code, and compare
     """
 
 
-has_equal_output = partial(has_expr, test = 'output')
+has_equal_output = partial(has_equal_x, test='output')
 has_equal_output.__doc__ = """Run targeted student and solution code, and compare output.
 
     When called on an SCT chain, ``has_equal_output()`` will execute the student and solution
     code that is 'zoomed in on' and compare the output.
     """ + args_string.format("output", "output")
 
-has_equal_error  = partial(has_expr, test = 'error')
+has_equal_error  = partial(has_equal_x, test='error')
 has_equal_error.__doc__ = """Run targeted student and solution code, and compare generated errors.
 
     When called on an SCT chain, ``has_equal_error()`` will execute the student and solution
